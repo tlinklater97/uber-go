@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "ubergosync",
+  "private_key_id": "4c8cc8659729da6c66795be52cc79458a9296f10",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC5EJ8hqiVWBgiE\nCIY9SKKAsQnCxZgLH9rtiqivHVSlkfoJu2VGZUHbri2qk7nSlIPOVvrTgWFFxCPV\n/ZQkEdH6Uqgf55VqY/b5vA27SpyNjZMOtqKRik+Br9N7XZspvhMf+SBQZxnxOKRM\naMcIzbfho8eAmwwqrqcdanyPmUjMSQlac1EyGfMhq+plWJR5LmqqmVV0aEKy2L2N\nEDqI+kTnwWy209XeI+l2+vI1clDoTaRXoh7smr9fa09Z7aPni/Wi9Fa7883SYcHt\nXRgSR2LGKYKO5ENCEnWyzmYHlQc/WFNb4dFI1HmD/8ir3IHNLeNQmPPdL91nES7m\n8Om9uxy7AgMBAAECggEAIoojIQ3X5QvAOCA9KZ/uUFV6bGMjguQBoLbxz6kKPNKX\nV4yllLNeTMlf1Ye3tUEprm+WZbYueO5n/87RgL/gsDcQENBQlygsFqUN7Qg6WsLz\nENpuUfp950bxEgPA61QBzsRYzxjHAznelDIz/4UhjhfaqrqFVUv+faN7tvNVXmbr\nfYLfSKn1BJZepSsDb7tO6HdIsxbwvTh3rmvaR1+0/4DWyBis4Mw/Pd5XH6JBpfqm\n442R2j784m/WsERXhmyAAP2hUoDJVHvEDysDKlH/F+o/+SMQ+2xiXzpggb48z+T8\nViBb0Ey7gFIREjnUJG2scjLdMdt8/9PBJcWvPwDsfQKBgQDzB5HJE+1PUos1ezKt\nnJtJnPZbNE913xBz/FEn05QgBhVefTH8sUl9OyNZ2zN6He8iNihHypTEAteDI3Qh\nDXnrRAB1Zgoiyw2uAgiBPco0rAW/JnNQKlGM7bQ9/b+43EU6dko0mCLAAZw/2UVt\naCC15z6O0S8Re9TeUuAjBWqMxwKBgQDC8RnWJytGkSMBC48MvS+LFlGBd+8cq5KF\nd9mWLvKgQcYLS9zeyO7Orxwrx+s9jLxb+MzZWEaxgLUiySX+/XDft3YDgsM2p5La\n60Fz3DgVOqrjDkv27FEo/W3L52jRDtkIpzUjxC2/ONSWeRjwnueXK9sFBHREmkZU\ngIqwytV0bQKBgAVs2tVJS5fkuNTVzjjP8SuAhINetJNmCmD8dfdUos7gM+PrGY2R\ni5lvE4fy+8AzIN57pQSNQirqAVOdG/+M5HbbCsOUJo/GRqTmyLfR4EyytmIhApv8\nhduGhuqHWptO14DJmTh5WPU+U/Wc7Q7XLzvAUMYxZ0KVqBfac8R0X3+LAoGBAL0e\n4o3cWiOP0oHFEPau41zwPgp4rEUIPpG1gCYvTbsjlFqJMrIABY4GXDItNY705hfj\n+/gvqAW0dAZXVsFWZxbjCV7GkVSIpfQ0n78jOlV+ISM+T3wyL1qw4sAatJl86hl2\n/hrAzBDjtXp16TgnMU57gXQQqiuT7/8y5Vo2rXbRAoGANzdHkuFj1iUCK8dfFbf8\ngTHw73K3t+Ae5dRkIkCVW064RiyMoDTVBJkmkg6cGe8mlgmzjwlQl+Sa1iY9Po03\nC5hlQ0H7zur4QM80OKE7j5rJZ8qakIvSt81pxvGJihxN/xiggZOwQO5PIwLtPqON\nBqPn3mr8bOqhdV0qFVOaFu4=\n-----END PRIVATE KEY-----\n",
+  "client_email": "uber-go@ubergosync.iam.gserviceaccount.com",
+  "client_id": "104135604997577920572",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/uber-go%40ubergosync.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
