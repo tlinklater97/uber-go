@@ -1,121 +1,137 @@
+# Uber Go - Clean UI Rebuild (mobile-first, no-scroll home layout)
+
 import streamlit as st
 from datetime import datetime
+from PIL import Image
+import pytesseract
+import gspread
+import json
+from oauth2client.service_account import ServiceAccountCredentials
 
-# === Streamlit Config ===
+# === Google Sheets Setup ===
+def connect_to_gsheet():
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    info = json.loads(st.secrets["gsheets"])
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(info, scope)
+    client = gspread.authorize(creds)
+    return client
+
+# === Sheet Config ===
+SHEET_NAME = "Uber Go - Earnings Tracker"
+TAB_NAME = "Shifts"
+
+# === Layout Config ===
 st.set_page_config(page_title="Uber Go", layout="centered", initial_sidebar_state="collapsed")
-
-# === Global Styles for Dark Mode + Fonts ===
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
-
-html, body, [class*="css"] {
-    font-family: 'Inter', sans-serif;
-    background-color: #0e1117;
-    color: #ffffff !important;
-    font-size: 14px; /* Smaller font like mockup */
-}
-
-.stApp {
-    background-color: #0e1117;
-    padding: 1rem;
-}
-
-/* Headings */
-h1, h2, h3, h4, h5, h6 {
-    font-weight: 600;
-    color: #ffffff !important;
-}
-
-/* Inputs + Containers */
-section, .stTextInput, .stNumberInput, .stFileUploader, .stTimeInput {
-    background-color: #1c1f26;
-    border-radius: 16px !important;
-    padding: 12px;
-    border: 1px solid #ffffff !important;
-    color: #ffffff !important;
-}
-
-input, textarea, select {
-    background-color: #0e1117 !important;
-    color: white !important;
-    border: none !important;
-    outline: none !important;
-}
-
-/* File Uploader */
-.stFileUploader > label {
-    border: 2px dashed #ffffff !important;
-    padding: 24px;
-    border-radius: 12px;
-    display: block;
-    text-align: center;
-    color: #ffffff !important;
-}
-
-/* Progress bar color */
-.stProgress > div > div {
-    background-color: #3b82f6 !important;
-}
-
-/* Button style */
-.stButton button {
-    background-color: #1f2937;
-    color: white;
-    font-weight: 600;
-    border-radius: 12px;
-    padding: 0.75rem 1.25rem;
-    border: 1px solid #ffffff;
-}
-
-/* Dashboard button at bottom */
-.center-button {
-    text-align: center;
-    margin-top: 2rem;
-}
+    html, body, [class*="css"]  {
+        font-family: 'Inter', sans-serif;
+        background-color: #0e1117;
+        color: #ffffff;
+    }
+    .stApp { padding: 1rem; }
+    .section-box {
+        background-color: #1c1f26;
+        border-radius: 16px;
+        padding: 12px;
+        border: 1px solid #ffffff;
+        margin-bottom: 12px;
+    }
+    .three-buttons {
+        display: flex;
+        justify-content: space-between;
+    }
+    .three-buttons button {
+        flex: 1;
+        margin: 0 4px;
+        padding: 14px;
+        border-radius: 12px;
+        background-color: #1c1f26;
+        border: 1px solid #ffffff;
+        color: white;
+        font-weight: 600;
+    }
 </style>
 """, unsafe_allow_html=True)
 
+# === Navigation ===
+if "page" not in st.session_state:
+    st.session_state.page = "home"
 
-# === App UI ===
-st.title("Uber Go")
+def go_to(page):
+    st.session_state.page = page
 
-# === Week Goal Display ===
-with st.container():
-    st.subheader("Week Goal: $850")
-    st.progress(0.49)
-    st.markdown("**Earned So Far:** $420")
-    st.markdown("**Remaining:** $430")
+# === HOME PAGE ===
+if st.session_state.page == "home":
+    st.title("Uber Go")
 
-# === Add Shift ===
-with st.container():
-    st.subheader("Add Shift")
-    start_time = st.time_input("Start Time", value=datetime.now().time())
-    end_time = st.time_input("End Time")
-    start_odo = st.number_input("Start Mileage (km)", min_value=0)
-    end_odo = st.number_input("End Mileage (km)", min_value=0)
+    # Graph + Stats button row
+    col1, col2 = st.columns([4,1])
+    with col1:
+        st.line_chart({"This Week": [120, 240, 310, 420, 420, None, None]})
+    with col2:
+        st.button("📈 Stats", on_click=lambda: go_to("stats"))  # Placeholder for future stats page
 
-# === Upload Earnings ===
-with st.container():
-    st.subheader("Upload Earnings")
-    selected_service = st.radio(
-    "Service",
-    options=["Uber", "DoorDash"],
-    horizontal=True,
-    index=0
-)
-    st.file_uploader("Upload Screenshot", type=["jpg", "jpeg", "png"], key="earnings")
+    # Goal summary block
+    st.markdown("**Goal:** $1000  \
+                **Earned:** $420  \
+                **On Track:** 42%")
 
-# === Hnry Payout ===
-with st.container():
-    st.subheader("Hnry Payout")
-    st.file_uploader("Upload File", type=["pdf", "jpg", "jpeg", "png"], key="hnry")
+    # New Shift section
+    st.markdown("### New Shift")
+    col1, col2 = st.columns(2)
+    with col1:
+        start_time = st.time_input("Time", value=datetime.now().time(), label_visibility="collapsed")
+    with col2:
+        odo = st.number_input("ODO", value=198655, step=1, label_visibility="collapsed")
 
-# === Dashboard Button ===
-st.markdown("""
-<div class="center-button">
-    <button style="font-size: 1.2rem; padding: 0.8rem 2rem; border-radius: 12px; background-color: #1c1f26; color: white; border: 1px solid #333;">
-        Dashboard
-    </button>
-</div>
-""", unsafe_allow_html=True)
+    if st.button("Submit Shift Start", use_container_width=True):
+        client = connect_to_gsheet()
+        sheet = client.open(SHEET_NAME).worksheet(TAB_NAME)
+        sheet.append_row([str(datetime.now().date()), str(start_time), odo, "START"])
+        st.success("Start shift submitted!")
+
+    # 3 button row
+    st.markdown("###")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("End Shift"):
+            go_to("end")
+    with col2:
+        st.empty()  # Spacer
+    with col3:
+        if st.button("Weekly Stats Upload"):
+            go_to("weekly")
+
+# === END SHIFT PAGE ===
+elif st.session_state.page == "end":
+    st.markdown("### End Shift")
+    end_time = st.time_input("Time", value=datetime.now().time(), label_visibility="collapsed")
+    odo_end = st.number_input("ODO", min_value=0, label_visibility="collapsed")
+    image = st.file_uploader("Upload Uber screenshot", type=["jpg", "jpeg", "png"])
+
+    if st.button("Submit End Shift", use_container_width=True):
+        client = connect_to_gsheet()
+        sheet = client.open(SHEET_NAME).worksheet(TAB_NAME)
+        sheet.append_row([str(datetime.now().date()), str(end_time), odo_end, "END"])
+        st.success("End shift submitted!")
+        go_to("home")
+
+    if st.button("⬅ Back", type="secondary"):
+        go_to("home")
+
+# === WEEKLY STATS PAGE ===
+elif st.session_state.page == "weekly":
+    st.markdown("### Weekly Stats Upload")
+    hnry = st.file_uploader("Upload Hnry Payout", type=["pdf", "jpg", "jpeg", "png"])
+    uber_stats = st.file_uploader("Upload Uber Stats", type=["csv", "jpg", "jpeg", "png"])
+
+    if st.button("Submit Weekly Data", use_container_width=True):
+        client = connect_to_gsheet()
+        sheet = client.open(SHEET_NAME).worksheet(TAB_NAME)
+        sheet.append_row([str(datetime.now().date()), "WEEKLY", "UPLOAD"])
+        st.success("Weekly data submitted!")
+        go_to("home")
+
+    if st.button("⬅ Back", type="secondary"):
+        go_to("home")
