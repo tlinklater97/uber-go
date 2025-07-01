@@ -6,6 +6,8 @@ from PIL import Image
 import pytesseract
 import gspread
 import json
+import pandas as pd
+import matplotlib.pyplot as plt
 from oauth2client.service_account import ServiceAccountCredentials
 
 # === Google Sheets Setup ===
@@ -58,6 +60,9 @@ st.markdown("""
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
+if "start_odo" not in st.session_state:
+    st.session_state.start_odo = 198655
+
 def go_to(page):
     st.session_state.page = page
 
@@ -65,40 +70,55 @@ def go_to(page):
 if st.session_state.page == "home":
     st.title("Uber Go")
 
-    # Graph + Stats button row
-    col1, col2 = st.columns([4,1])
-    with col1:
-        st.line_chart({"This Week": [120, 240, 310, 420, 420, None, None]})
-    with col2:
-        st.button("📈 Stats", on_click=lambda: go_to("stats"))  # Placeholder for future stats page
+    # Weekly Graph with Targets and Actuals
+    target = [150, 300, 450, 600, 750, 900, 1000]
+    actual = [120, 240, 310, 420, None, None, None]
+    days = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 
-    # Goal summary block
-    st.markdown("**Goal:** $1000  \
-                **Earned:** $420  \
-                **On Track:** 42%")
+    fig, ax = plt.subplots(figsize=(6, 2))
+    ax.plot(days, target, color='white', linestyle='--', label='Target')
 
-    # New Shift section
+    colors = ['green' if a and t and a >= t else 'red' for a, t in zip(actual, target)]
+    for i in range(len(actual)):
+        if actual[i] is not None:
+            ax.plot(days[i], actual[i], marker='o', color=colors[i])
+    ax.plot(days[:len(actual)], actual, color='white', alpha=0.3, label='Actual')
+
+    ax.set_facecolor('#0e1117')
+    ax.tick_params(colors='white')
+    ax.spines['bottom'].set_color('white')
+    ax.spines['top'].set_color('white')
+    ax.spines['left'].set_color('white')
+    ax.spines['right'].set_color('white')
+    st.pyplot(fig)
+
+    st.button("📈 Stats", on_click=lambda: go_to("stats"))
+
+    st.markdown("**Goal:** $1000  ")
+    st.markdown("**Earned:** $420  ")
+    st.markdown("**On Track:** 42%")
+
     st.markdown("### New Shift")
     col1, col2 = st.columns(2)
     with col1:
         start_time = st.time_input("Time", value=datetime.now().time(), label_visibility="collapsed")
     with col2:
-        odo = st.number_input("ODO", value=198655, step=1, label_visibility="collapsed")
+        odo = st.number_input("ODO", value=st.session_state.start_odo, step=1, label_visibility="collapsed")
 
     if st.button("Submit Shift Start", use_container_width=True):
+        st.session_state.start_odo = odo
         client = connect_to_gsheet()
         sheet = client.open(SHEET_NAME).worksheet(TAB_NAME)
         sheet.append_row([str(datetime.now().date()), str(start_time), odo, "START"])
         st.success("Start shift submitted!")
 
-    # 3 button row
     st.markdown("###")
     col1, col2, col3 = st.columns(3)
     with col1:
         if st.button("End Shift"):
             go_to("end")
     with col2:
-        st.empty()  # Spacer
+        st.empty()
     with col3:
         if st.button("Weekly Stats Upload"):
             go_to("weekly")
@@ -107,7 +127,7 @@ if st.session_state.page == "home":
 elif st.session_state.page == "end":
     st.markdown("### End Shift")
     end_time = st.time_input("Time", value=datetime.now().time(), label_visibility="collapsed")
-    odo_end = st.number_input("ODO", min_value=0, label_visibility="collapsed")
+    odo_end = st.number_input("ODO", value=st.session_state.start_odo, min_value=0, label_visibility="collapsed")
     image = st.file_uploader("Upload Uber screenshot", type=["jpg", "jpeg", "png"])
 
     if st.button("Submit End Shift", use_container_width=True):
