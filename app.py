@@ -7,6 +7,11 @@ import pandas as pd
 from datetime import datetime
 from google.oauth2.service_account import Credentials
 
+
+import streamlit as st
+
+st.write("Secrets keys available:", list(st.secrets.keys()))
+
 # === Streamlit Page Config ===
 st.set_page_config(page_title="Uber Go", layout="centered", initial_sidebar_state="collapsed")
 st.title("🚗 Uber Go")
