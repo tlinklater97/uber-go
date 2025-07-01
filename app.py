@@ -18,7 +18,7 @@ st.title("🚗 Uber Go")
 
 # === Google Sheets Auth via Streamlit Secrets ===
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-service_account_info = st.secrets["gcp_service_account"]
+service_account_info = st.secrets["gsheets"]
 creds = Credentials.from_service_account_info(service_account_info, scopes=scope)
 client = gspread.authorize(creds)
 
