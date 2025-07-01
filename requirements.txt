@@ -3,3 +3,4 @@ pytesseract
 Pillow
 gspread
 oauth2client
+matplotlib
