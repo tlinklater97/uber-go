@@ -25,3 +25,9 @@ def connect_to_sheet(spreadsheet_name, worksheet_name):
     gc = gspread.authorize(credentials)
     sheet = gc.open(spreadsheet_name).worksheet(worksheet_name)
     return sheet
+
+def get_latest_odo(sheet, odo_column_name="end_odo"):
+    records = sheet.get_all_records()
+    odos = [row[odo_column_name] for row in records if isinstance(row[odo_column_name], int)]
+    return max(odos) if odos else 0
+
