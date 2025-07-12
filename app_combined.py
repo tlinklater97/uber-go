@@ -8,10 +8,9 @@ from utils.sheets import connect_to_sheet, get_latest_odo
 
 # Constants
 SPREADSHEET_NAME = "Uber Go - Earnings Tracker"
-JSON_FILE = "ubergosync-684421f92830.json"
 
 # Connect to sheets
-shifts_sheet = connect_to_sheet(SPREADSHEET_NAME, "Shifts", JSON_FILE)
+shifts_sheet = connect_to_sheet(SPREADSHEET_NAME, "Shifts")
 
 # Set page config
 st.set_page_config(page_title="Uber Go", layout="wide")
@@ -27,7 +26,6 @@ PERCENT = int(EARNED / WEEKLY_GOAL * 100)
 
 if page == "Home":
     st.title("Uber Go")
-
 
     # New Shift Inputs
     st.subheader("New Shift")
