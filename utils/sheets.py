@@ -1,6 +1,5 @@
 import gspread
 import streamlit as st
-import json
 from google.oauth2.service_account import Credentials
 
 def connect_to_sheet(spreadsheet_name, worksheet_name):
@@ -9,9 +8,9 @@ def connect_to_sheet(spreadsheet_name, worksheet_name):
         "https://www.googleapis.com/auth/drive"
     ]
 
-    # ✅ Updated to use single JSON blob
-    service_account_info = json.loads(st.secrets["secret_key_json"])
-    
+    # ✅ Use service account dict directly from secrets
+    service_account_info = st.secrets["secret_key_json"]
+
     credentials = Credentials.from_service_account_info(service_account_info, scopes=scopes)
     gc = gspread.authorize(credentials)
     sheet = gc.open(spreadsheet_name).worksheet(worksheet_name)
