@@ -2,8 +2,6 @@ import streamlit as st
 from datetime import datetime, date
 import pytesseract
 from PIL import Image
-import gspread
-from google.oauth2.service_account import Credentials
 from utils.sheets import connect_to_sheet, get_latest_odo
 
 # Constants
@@ -12,7 +10,7 @@ SPREADSHEET_NAME = "Uber Go - Earnings Tracker"
 # Connect to sheets
 shifts_sheet = connect_to_sheet(SPREADSHEET_NAME, "Shifts")
 
-# Set page config
+# Page config
 st.set_page_config(page_title="Uber Go", layout="wide")
 
 # Page routing
@@ -24,23 +22,29 @@ WEEKLY_GOAL = 1000
 EARNED = 450
 PERCENT = int(EARNED / WEEKLY_GOAL * 100)
 
+# --- HOME ---
 if page == "Home":
     st.title("Uber Go")
+
+    # Init session state for start shift
+    if "start_date" not in st.session_state:
+        st.session_state["start_date"] = date.today()
+    if "start_time" not in st.session_state:
+        st.session_state["start_time"] = datetime.now().time()
+    if "start_odo" not in st.session_state:
+        st.session_state["start_odo"] = get_latest_odo(shifts_sheet)
 
     # New Shift Inputs
     st.subheader("New Shift")
     col_date, col_time, col_odo = st.columns(3)
     with col_date:
-        start_date = st.date_input("Date", value=date.today(), key="start_date")
+        st.date_input("Date", key="start_date")
     with col_time:
-        start_time = st.time_input("Start Time", value=datetime.now().time(), key="start_time")
+        st.time_input("Start Time", key="start_time")
     with col_odo:
-        start_odo = st.number_input("Odometer", value=get_latest_odo(shifts_sheet), key="start_odo")
+        st.number_input("Odometer", min_value=0, key="start_odo")
 
     if st.button("Submit Start Shift"):
-        st.session_state["start_date"] = start_date
-        st.session_state["start_time"] = start_time
-        st.session_state["start_odo"] = start_odo
         st.success("Start shift saved in session.")
 
     st.markdown("---")
@@ -60,8 +64,10 @@ if page == "Home":
             st.query_params["page"] = "Paste Uber Trips Table"
             st.rerun()
 
+# --- END SHIFT ---
 elif page == "End Shift":
     st.title("End Shift")
+
     col1, col2, col3 = st.columns(3)
     with col1:
         end_time = st.time_input("End Time", value=datetime.now().time(), key="end_time")
@@ -88,6 +94,9 @@ elif page == "End Shift":
             st.rerun()
         except Exception as e:
             st.error(f"Error saving shift: {e}")
+
     if st.button("Back"):
         st.query_params["page"] = "Home"
         st.rerun()
+
+# Add your other page handlers (Weekly Upload, Paste Uber Trips Table) here if needed
