@@ -5,11 +5,9 @@ from google.oauth2.service_account import Credentials
 from utils.sheets import connect_to_sheet, get_latest_odo
 import base64
 
-
 # ---- FONT INJECTION ----
 with open("fonts/FFClanProBold.TTF", "rb") as f:
     ttf_base64 = base64.b64encode(f.read()).decode("utf-8")
-
 
 st.markdown(f"""
     <style>
@@ -25,19 +23,16 @@ st.markdown(f"""
 
 # ---- SETUP ----
 st.set_page_config(page_title="Uber Go", layout="wide")
-st.title("Uber Go")
 
-SPREADSHEET_NAME = "Uber Go - Earnings Tracker"
-shifts_sheet = connect_to_sheet(SPREADSHEET_NAME, "Shifts")
 # ---- AUTHENTICATION GATE ----
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 
 if not st.session_state["authenticated"]:
-    st.title("🔒 Enter PIN to Access Uber Go")
+    st.title("Enter PIN to Access Uber Go")
     pin_input = st.text_input("Enter 4-digit PIN", type="password", max_chars=4)
 
-    # Optional: numpad buttons (for mobile UX)
+    # Numpad
     cols = st.columns(3)
     for i in range(1, 10):
         if cols[(i - 1) % 3].button(str(i)):
@@ -56,12 +51,18 @@ if not st.session_state["authenticated"]:
         else:
             st.error("Incorrect PIN")
 
-    # Show current input
     if "pin_input" in st.session_state:
         st.write("Entered:", "•" * len(st.session_state["pin_input"]))
 
     st.stop()
-# ---- ROUTER ----
+
+# ---- MAIN APP ----
+st.title("Uber Go")
+
+SPREADSHEET_NAME = "Uber Go - Earnings Tracker"
+shifts_sheet = connect_to_sheet(SPREADSHEET_NAME, "Shifts")
+
+# ---- PAGE ROUTER ----
 query_params = st.query_params
 page = query_params.get("page", "Home")
 
@@ -106,14 +107,12 @@ if page == "Home":
 elif page == "End Shift":
     st.title("End Shift")
     col1, col2, col3 = st.columns(3)
-   
     with col1:
         end_date = st.date_input("Date", value=date.today())
     with col2:
         end_time = st.time_input("End Time", value=datetime.now().time())
     with col3:
         end_odo = st.number_input("Odometer", value=get_latest_odo(shifts_sheet))
-    
 
     if st.button("Submit End Shift"):
         try:
