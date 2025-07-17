@@ -3,6 +3,25 @@ from datetime import datetime, date
 import gspread
 from google.oauth2.service_account import Credentials
 from utils.sheets import connect_to_sheet, get_latest_odo
+import base64
+
+
+# ---- FONT INJECTION ----
+with open("fonts/FFClanProBold.TTF", "rb") as f:
+    ttf_base64 = base64.b64encode(f.read()).decode("utf-8")
+
+
+st.markdown(f"""
+    <style>
+    @font-face {{
+        font-family: 'FFClanProBold';
+        src: url(data:font/ttf;base64,{ttf_base64}) format('truetype');
+    }}
+    html, body, [class*="css"] {{
+        font-family: 'FFClanProBold', sans-serif;
+    }}
+    </style>
+""", unsafe_allow_html=True)
 
 # ---- SETUP ----
 st.set_page_config(page_title="Uber Go", layout="wide")
