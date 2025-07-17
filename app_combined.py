@@ -4,33 +4,30 @@ import gspread
 from google.oauth2.service_account import Credentials
 from utils.sheets import connect_to_sheet, get_latest_odo
 import base64
-
-# ---- FONT + DARK MODE STYLING ----
 import os
 
+# ---- FONT CHECK & RED SCREEN IF MISSING ----
 font_path = "fonts/FFClanProBold.TTF"
 if not os.path.exists(font_path):
     st.markdown("""
         <style>
         html, body {
-            background-color: #ff0033;
-            color: white;
-            font-size: 24px;
-            text-align: center;
+            background-color: #ff0033 !important;
+            color: white !important;
+            font-size: 24px !important;
+            text-align: center !important;
             padding: 2em;
         }
         </style>
-        <div>
-            <h1>🚫 FONT ERROR</h1>
-            <p>The file <code>fonts/FFClanProBold.TTF</code> was not found.</p>
-            <p>Please make sure the font is committed to your GitHub repo.</p>
-        </div>
     """, unsafe_allow_html=True)
+    st.error("🚫 FONT ERROR: `fonts/FFClanProBold.TTF` is missing.")
+    st.write("Please commit the font file to your GitHub repo under `/fonts`.")
     st.stop()
 
 with open(font_path, "rb") as f:
     ttf_base64 = base64.b64encode(f.read()).decode("utf-8")
 
+# ---- GLOBAL STYLING ----
 st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter&display=swap');
@@ -82,10 +79,10 @@ st.markdown(f"""
     </style>
 """, unsafe_allow_html=True)
 
-# ---- SETUP ----
+# ---- PAGE CONFIG ----
 st.set_page_config(page_title="Uber Go", layout="wide")
 
-# ---- AUTH GATE ----
+# ---- PIN GATE ----
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 
@@ -121,7 +118,7 @@ st.title("Uber Go")
 SPREADSHEET_NAME = "Uber Go - Earnings Tracker"
 shifts_sheet = connect_to_sheet(SPREADSHEET_NAME, "Shifts")
 
-# ---- ROUTER ----
+# ---- ROUTING ----
 query_params = st.query_params
 page = query_params.get("page", "Home")
 
