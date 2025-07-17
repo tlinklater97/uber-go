@@ -39,96 +39,114 @@ st.markdown(f"""
         font-family: 'FFClanProBold', sans-serif;
     }}
     h1, h2, h3, .stTitle, .stHeader, .stSubheader {{
-        font-family: 'FFClanProBold', sans-serif;
         color: #ffffff;
     }}
-    input[type="password"] {{
-        font-size: 24px !important;
-        text-align: center !important;
+    input[type="password"], input[type="text"] {{
+        font-size: 24px;
+        text-align: center;
+    }}
+    .stTextInput > div > input {{
+        background-color: #262730;
+        color: #ffffff;
+    }}
+    .stButton > button {{
+        background-color: #1f77b4;
+        color: white;
+        font-weight: bold;
+        border-radius: 6px;
+        padding: 0.5em 1.2em;
+        font-size: 1.1em;
     }}
     </style>
-    <script>
-    document.addEventListener("DOMContentLoaded", function() {{
-        const pinInput = document.querySelector('input[type="password"]');
-        if (pinInput) {{
-            pinInput.setAttribute("inputmode", "numeric");
-            pinInput.setAttribute("pattern", "[0-9]*");
-        }}
-    }});
-    </script>
 """, unsafe_allow_html=True)
 
 # ---- PAGE CONFIG ----
 st.set_page_config(page_title="Uber Go", layout="wide")
+SPREADSHEET_NAME = "Uber Go - Earnings Tracker"
 
-# ---- PIN AUTHENTICATION ----
+# ---- PIN AUTH ----
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 
 if not st.session_state["authenticated"]:
     st.title("Enter PIN to Access Uber Go")
 
-    pin_input = st.text_input("Enter 4-digit PIN", type="password", max_chars=4)
+    # Native numeric input
+    st.markdown("""
+        <input id="pin_input" type="password" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="Enter 4-digit PIN"
+        style="width: 100%; padding: 10px; font-size: 20px; text-align: center; border-radius: 8px; border: 1px solid #666;"
+        oninput="window.parent.postMessage({type: 'streamlit:setComponentValue', value: this.value}, '*')"
+        />
+        <script>
+        window.addEventListener('message', (event) => {{
+            if (event.data.type === 'streamlit:setComponentValue') {{
+                Streamlit.setComponentValue(event.data.value);
+            }}
+        }});
+        </script>
+    """, unsafe_allow_html=True)
 
-    col_clear, col_enter = st.columns([1, 1])
-    if col_clear.button("Clear"):
-        st.session_state["pin_input"] = ""
-    if col_enter.button("Enter"):
-        if st.session_state.get("pin_input", "") == "1305" or pin_input == "1305":
+    pin_input = st.text_input("Enter 4-digit PIN", type="password", max_chars=4, key="pinfield")
+
+    col1, col2 = st.columns(2)
+    if col1.button("Clear"):
+        st.session_state["pinfield"] = ""
+    if col2.button("Enter"):
+        if st.session_state.get("pinfield", "") == "1305":
             st.session_state["authenticated"] = True
-            st.session_state.pop("pin_input", None)
-            st.experimental_rerun()
+            st.rerun()
         else:
             st.error("Incorrect PIN")
-
-    if "pin_input" in st.session_state:
-        st.write("Entered:", "•" * len(st.session_state["pin_input"]))
-
     st.stop()
 
-# ---- MAIN APP ----
-st.title("Uber Go")
-
-SPREADSHEET_NAME = "Uber Go - Earnings Tracker"
+# ---- SHEET CONNECT ----
 shifts_sheet = connect_to_sheet(SPREADSHEET_NAME, "Shifts")
 
+# ---- ROUTING ----
 query_params = st.query_params
 page = query_params.get("page", "Home")
 
+# ---- HOME PAGE ----
 if page == "Home":
+    st.title("Uber Go")
     st.subheader("Start New Shift")
 
-    start_date = st.date_input("Date", value=date.today())
-    start_time = st.time_input("Start Time", value=datetime.now().time())
-    start_odo = st.number_input("Starting Odometer", value=get_latest_odo(shifts_sheet), step=1, format="%d")
+    col_date, col_time, col_odo = st.columns(3)
+    with col_date:
+        start_date = st.date_input("Date", value=date.today())
+    with col_time:
+        start_time = st.time_input("Start Time", value=datetime.now().time())
+    with col_odo:
+        start_odo = st.number_input("Odometer", value=get_latest_odo(shifts_sheet), step=1)
 
     if st.button("Submit Start Shift"):
         st.session_state.start_date = start_date
         st.session_state.start_time = start_time
         st.session_state.start_odo = start_odo
-        st.success("Start shift saved in session.")
-
+        st.success("Start shift saved.")
+    
     st.markdown("---")
     colA, colB, colC = st.columns(3)
-    with colA:
-        if st.button("End Shift"):
-            st.query_params["page"] = "End Shift"
-            st.rerun()
-    with colB:
-        if st.button("Weekly Stats Upload"):
-            st.query_params["page"] = "Weekly Upload"
-            st.rerun()
-    with colC:
-        if st.button("Paste Uber Trips Table"):
-            st.query_params["page"] = "Paste Uber Trips Table"
-            st.rerun()
+    if colA.button("End Shift"):
+        st.query_params["page"] = "End Shift"
+        st.rerun()
+    if colB.button("Weekly Stats Upload"):
+        st.query_params["page"] = "Weekly Upload"
+        st.rerun()
+    if colC.button("Paste Uber Trips Table"):
+        st.query_params["page"] = "Paste Uber Trips Table"
+        st.rerun()
 
+# ---- END SHIFT ----
 elif page == "End Shift":
-    st.subheader("End Shift")
-
-    end_date = st.date_input("Date", value=date.today())
-    end_time = st.time_input("End Time", value=datetime.now().time())
-    end_odo = st.number_input("Ending Odometer", value=get_latest_odo(shifts_sheet), step=1, format="%d")
+    st.title("End Shift")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        end_date = st.date_input("Date", value=date.today())
+    with col2:
+        end_time = st.time_input("End Time", value=datetime.now().time())
+    with col3:
+        end_odo = st.number_input("Odometer", value=get_latest_odo(shifts_sheet), step=1)
 
     if st.button("Submit End Shift"):
         try:
@@ -143,7 +161,7 @@ elif page == "End Shift":
                 "source": "manual"
             }
             shifts_sheet.append_row(list(row.values()))
-            st.success("Shift logged successfully.")
+            st.success("Shift logged.")
             st.query_params["page"] = "Home"
             st.rerun()
         except Exception as e:
