@@ -29,7 +29,38 @@ st.title("Uber Go")
 
 SPREADSHEET_NAME = "Uber Go - Earnings Tracker"
 shifts_sheet = connect_to_sheet(SPREADSHEET_NAME, "Shifts")
+# ---- AUTHENTICATION GATE ----
+if "authenticated" not in st.session_state:
+    st.session_state["authenticated"] = False
 
+if not st.session_state["authenticated"]:
+    st.title("🔒 Enter PIN to Access Uber Go")
+    pin_input = st.text_input("Enter 4-digit PIN", type="password", max_chars=4)
+
+    # Optional: numpad buttons (for mobile UX)
+    cols = st.columns(3)
+    for i in range(1, 10):
+        if cols[(i - 1) % 3].button(str(i)):
+            st.session_state["pin_input"] = st.session_state.get("pin_input", "") + str(i)
+    if st.columns(3)[1].button("0"):
+        st.session_state["pin_input"] = st.session_state.get("pin_input", "") + "0"
+
+    # Clear and submit
+    col_clear, col_enter = st.columns([1, 1])
+    if col_clear.button("Clear"):
+        st.session_state["pin_input"] = ""
+    if col_enter.button("Enter"):
+        if st.session_state.get("pin_input") == "1305" or pin_input == "1305":
+            st.session_state["authenticated"] = True
+            st.experimental_rerun()
+        else:
+            st.error("Incorrect PIN")
+
+    # Show current input
+    if "pin_input" in st.session_state:
+        st.write("Entered:", "•" * len(st.session_state["pin_input"]))
+
+    st.stop()
 # ---- ROUTER ----
 query_params = st.query_params
 page = query_params.get("page", "Home")
