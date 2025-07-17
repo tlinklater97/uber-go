@@ -128,7 +128,6 @@ page = query_params.get("page", "Home")
 
 if page == "Home":
     st.subheader("Start New Shift")
-
     start_date = st.date_input("Date", value=date.today())
     start_time = st.time_input("Start Time", value=datetime.now().time())
     start_odo = st.number_input("Starting Odometer", value=get_latest_odo(shifts_sheet), step=1, format="%d")
@@ -143,20 +142,19 @@ if page == "Home":
     colA, colB, colC = st.columns(3)
     with colA:
         if st.button("End Shift"):
-            st.query_params["page"] = "End Shift"
+            st.experimental_set_query_params(page="End Shift")
             st.rerun()
     with colB:
         if st.button("Weekly Stats Upload"):
-            st.query_params["page"] = "Weekly Upload"
+            st.experimental_set_query_params(page="Weekly Upload")
             st.rerun()
     with colC:
         if st.button("Paste Uber Trips Table"):
-            st.query_params["page"] = "Paste Uber Trips Table"
+            st.experimental_set_query_params(page="Paste Uber Trips Table")
             st.rerun()
 
 elif page == "End Shift":
     st.subheader("End Shift")
-
     end_date = st.date_input("Date", value=date.today())
     end_time = st.time_input("End Time", value=datetime.now().time())
     end_odo = st.number_input("Ending Odometer", value=get_latest_odo(shifts_sheet), step=1, format="%d")
@@ -175,11 +173,11 @@ elif page == "End Shift":
             }
             shifts_sheet.append_row(list(row.values()))
             st.success("Shift logged successfully.")
-            st.query_params["page"] = "Home"
+            st.experimental_set_query_params(page="Home")
             st.rerun()
         except Exception as e:
             st.error(f"Error saving shift: {e}")
 
     if st.button("Back to Home"):
-        st.query_params["page"] = "Home"
+        st.experimental_set_query_params(page="Home")
         st.rerun()
