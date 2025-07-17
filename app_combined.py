@@ -6,7 +6,29 @@ from utils.sheets import connect_to_sheet, get_latest_odo
 import base64
 
 # ---- FONT + DARK MODE STYLING ----
-with open("fonts/FFClanProBold.TTF", "rb") as f:
+import os
+
+font_path = "fonts/FFClanProBold.TTF"
+if not os.path.exists(font_path):
+    st.markdown("""
+        <style>
+        html, body {
+            background-color: #ff0033;
+            color: white;
+            font-size: 24px;
+            text-align: center;
+            padding: 2em;
+        }
+        </style>
+        <div>
+            <h1>🚫 FONT ERROR</h1>
+            <p>The file <code>fonts/FFClanProBold.TTF</code> was not found.</p>
+            <p>Please make sure the font is committed to your GitHub repo.</p>
+        </div>
+    """, unsafe_allow_html=True)
+    st.stop()
+
+with open(font_path, "rb") as f:
     ttf_base64 = base64.b64encode(f.read()).decode("utf-8")
 
 st.markdown(f"""
