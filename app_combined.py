@@ -65,39 +65,48 @@ st.set_page_config(page_title="Uber Go", layout="wide")
 SPREADSHEET_NAME = "Uber Go - Earnings Tracker"
 
 # ---- PIN AUTH ----
+# ---- PIN GATE ----
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
+if "pin_input" not in st.session_state:
+    st.session_state["pin_input"] = ""
 
 if not st.session_state["authenticated"]:
     st.title("Enter PIN to Access Uber Go")
 
-    # Native numeric input
+    pin_input = st.text_input(
+        "Enter 4-digit PIN",
+        value=st.session_state["pin_input"],
+        type="password",
+        max_chars=4,
+        key="pin_input"
+    )
+
+    # Force mobile to open number keyboard
     st.markdown("""
-        <input id="pin_input" type="password" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="Enter 4-digit PIN"
-        style="width: 100%; padding: 10px; font-size: 20px; text-align: center; border-radius: 8px; border: 1px solid #666;"
-        oninput="window.parent.postMessage({type: 'streamlit:setComponentValue', value: this.value}, '*')"
-        />
         <script>
-        window.addEventListener('message', (event) => {{
-            if (event.data.type === 'streamlit:setComponentValue') {{
-                Streamlit.setComponentValue(event.data.value);
-            }}
-        }});
+        const el = window.parent.document.querySelector('input[type="password"]');
+        if (el) {
+            el.setAttribute("inputmode", "numeric");
+            el.setAttribute("pattern", "[0-9]*");
+        }
         </script>
     """, unsafe_allow_html=True)
 
-    pin_input = st.text_input("Enter 4-digit PIN", type="password", max_chars=4, key="pinfield")
-
     col1, col2 = st.columns(2)
     if col1.button("Clear"):
-        st.session_state["pinfield"] = ""
+        st.session_state["pin_input"] = ""
+        st.rerun()
+
     if col2.button("Enter"):
-        if st.session_state.get("pinfield", "") == "1305":
+        if st.session_state["pin_input"] == "1305":
             st.session_state["authenticated"] = True
             st.rerun()
         else:
             st.error("Incorrect PIN")
+
     st.stop()
+
 
 # ---- SHEET CONNECT ----
 shifts_sheet = connect_to_sheet(SPREADSHEET_NAME, "Shifts")
