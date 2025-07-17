@@ -4,49 +4,79 @@ import gspread
 from google.oauth2.service_account import Credentials
 from utils.sheets import connect_to_sheet, get_latest_odo
 import base64
+import os
 
 # ---- FONT INJECTION ----
-with open("fonts/FFClanProBold.TTF", "rb") as f:
+font_path = "fonts/FFClanProBold.TTF"
+if not os.path.exists(font_path):
+    st.markdown("""
+        <style>
+        html, body {
+            background-color: #ff0033 !important;
+            color: white !important;
+            font-size: 24px !important;
+            text-align: center !important;
+            padding: 2em;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    st.error("FONT ERROR: `fonts/FFClanProBold.TTF` is missing.")
+    st.stop()
+
+with open(font_path, "rb") as f:
     ttf_base64 = base64.b64encode(f.read()).decode("utf-8")
 
+# ---- GLOBAL STYLING ----
 st.markdown(f"""
     <style>
     @font-face {{
         font-family: 'FFClanProBold';
         src: url(data:font/ttf;base64,{ttf_base64}) format('truetype');
     }}
-    html, body, [class*="css"] {{
+    html, body {{
+        background-color: #0e1117;
+        color: #f5f5f5;
         font-family: 'FFClanProBold', sans-serif;
     }}
+    h1, h2, h3, .stTitle, .stHeader, .stSubheader {{
+        font-family: 'FFClanProBold', sans-serif;
+        color: #ffffff;
+    }}
+    input[type="password"] {{
+        font-size: 24px !important;
+        text-align: center !important;
+    }}
     </style>
+    <script>
+    document.addEventListener("DOMContentLoaded", function() {{
+        const pinInput = document.querySelector('input[type="password"]');
+        if (pinInput) {{
+            pinInput.setAttribute("inputmode", "numeric");
+            pinInput.setAttribute("pattern", "[0-9]*");
+        }}
+    }});
+    </script>
 """, unsafe_allow_html=True)
 
-# ---- SETUP ----
+# ---- PAGE CONFIG ----
 st.set_page_config(page_title="Uber Go", layout="wide")
 
-# ---- AUTHENTICATION GATE ----
+# ---- PIN AUTHENTICATION ----
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 
 if not st.session_state["authenticated"]:
     st.title("Enter PIN to Access Uber Go")
+
     pin_input = st.text_input("Enter 4-digit PIN", type="password", max_chars=4)
 
-    # Numpad
-    cols = st.columns(3)
-    for i in range(1, 10):
-        if cols[(i - 1) % 3].button(str(i)):
-            st.session_state["pin_input"] = st.session_state.get("pin_input", "") + str(i)
-    if st.columns(3)[1].button("0"):
-        st.session_state["pin_input"] = st.session_state.get("pin_input", "") + "0"
-
-    # Clear and submit
     col_clear, col_enter = st.columns([1, 1])
     if col_clear.button("Clear"):
         st.session_state["pin_input"] = ""
     if col_enter.button("Enter"):
-        if st.session_state.get("pin_input") == "1305" or pin_input == "1305":
+        if st.session_state.get("pin_input", "") == "1305" or pin_input == "1305":
             st.session_state["authenticated"] = True
+            st.session_state.pop("pin_input", None)
             st.experimental_rerun()
         else:
             st.error("Incorrect PIN")
@@ -62,26 +92,15 @@ st.title("Uber Go")
 SPREADSHEET_NAME = "Uber Go - Earnings Tracker"
 shifts_sheet = connect_to_sheet(SPREADSHEET_NAME, "Shifts")
 
-# ---- PAGE ROUTER ----
 query_params = st.query_params
 page = query_params.get("page", "Home")
 
-# ---- MOCK STATS ----
-WEEKLY_GOAL = 1000
-EARNED = 450
-PERCENT = int(EARNED / WEEKLY_GOAL * 100)
-
 if page == "Home":
-    st.subheader("New Shift")
+    st.subheader("Start New Shift")
 
-    # Input fields
-    col_date, col_time, col_odo = st.columns(3)
-    with col_date:
-        start_date = st.date_input("Date", value=date.today())
-    with col_time:
-        start_time = st.time_input("Start Time", value=datetime.now().time())
-    with col_odo:
-        start_odo = st.number_input("Odometer", value=get_latest_odo(shifts_sheet))
+    start_date = st.date_input("Date", value=date.today())
+    start_time = st.time_input("Start Time", value=datetime.now().time())
+    start_odo = st.number_input("Starting Odometer", value=get_latest_odo(shifts_sheet), step=1, format="%d")
 
     if st.button("Submit Start Shift"):
         st.session_state.start_date = start_date
@@ -105,14 +124,11 @@ if page == "Home":
             st.rerun()
 
 elif page == "End Shift":
-    st.title("End Shift")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        end_date = st.date_input("Date", value=date.today())
-    with col2:
-        end_time = st.time_input("End Time", value=datetime.now().time())
-    with col3:
-        end_odo = st.number_input("Odometer", value=get_latest_odo(shifts_sheet))
+    st.subheader("End Shift")
+
+    end_date = st.date_input("Date", value=date.today())
+    end_time = st.time_input("End Time", value=datetime.now().time())
+    end_odo = st.number_input("Ending Odometer", value=get_latest_odo(shifts_sheet), step=1, format="%d")
 
     if st.button("Submit End Shift"):
         try:
@@ -133,6 +149,6 @@ elif page == "End Shift":
         except Exception as e:
             st.error(f"Error saving shift: {e}")
 
-    if st.button("Back"):
+    if st.button("Back to Home"):
         st.query_params["page"] = "Home"
         st.rerun()
