@@ -56,10 +56,11 @@ if page == "Home":
 elif page == "End Shift":
     st.title("End Shift")
     col1, col2, col3 = st.columns(3)
+   
     with col1:
-        end_time = st.time_input("End Time", value=datetime.now().time())
-    with col2:
         end_date = st.date_input("Date", value=date.today())
+    with col2:
+        end_time = st.time_input("End Time", value=datetime.now().time())
     with col3:
         end_odo = st.number_input("Odometer", value=get_latest_odo(shifts_sheet))
     
