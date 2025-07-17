@@ -82,12 +82,12 @@ if not st.session_state["authenticated"]:
         </script>
     """, unsafe_allow_html=True)
 
-    pin_input = st.text_input("", type="password", max_chars=4)
+    pin_input = st.text_input("PIN", type="password", max_chars=4, label_visibility="collapsed")
 
     if pin_input == "1305":
         st.session_state["authenticated"] = True
         st.experimental_rerun()
-    elif pin_input and pin_input != "1305":
+    elif pin_input:
         st.error("Incorrect PIN")
 
     st.markdown('</div>', unsafe_allow_html=True)
