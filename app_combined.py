@@ -20,7 +20,7 @@ if not os.path.exists(font_path):
         }
         </style>
     """, unsafe_allow_html=True)
-    st.error("🚫 FONT ERROR: `fonts/FFClanProBold.TTF` is missing.")
+    st.error("FONT ERROR: `fonts/FFClanProBold.TTF` is missing.")
     st.write("Please commit the font file to your GitHub repo under `/fonts`.")
     st.stop()
 
@@ -88,7 +88,7 @@ if "authenticated" not in st.session_state:
 
 if not st.session_state["authenticated"]:
     st.markdown('<div class="centered-box">', unsafe_allow_html=True)
-    st.title("\ud83d\udd12 Enter PIN to Access Uber Go")
+    st.title("Enter PIN to Access Uber Go")
 
     pin_input = st.text_input("Enter 4-digit PIN", type="password", max_chars=4)
 
@@ -112,7 +112,7 @@ if not st.session_state["authenticated"]:
             st.error("Incorrect PIN")
 
     if "pin_input" in st.session_state:
-        st.write("Entered:", "\u2022" * len(st.session_state["pin_input"]))
+        st.write("Entered:", "*" * len(st.session_state["pin_input"]))
 
     st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
@@ -127,13 +127,13 @@ query_params = st.query_params
 page = query_params.get("page", "Home")
 
 if page == "Home":
-    st.subheader("\ud83d\ude97 Start New Shift")
+    st.subheader("Start New Shift")
 
     start_date = st.date_input("Date", value=date.today())
     start_time = st.time_input("Start Time", value=datetime.now().time())
     start_odo = st.number_input("Starting Odometer", value=get_latest_odo(shifts_sheet), step=1, format="%d")
 
-    if st.button("\u2705 Submit Start Shift"):
+    if st.button("Submit Start Shift"):
         st.session_state.start_date = start_date
         st.session_state.start_time = start_time
         st.session_state.start_odo = start_odo
@@ -142,26 +142,26 @@ if page == "Home":
     st.markdown("---")
     colA, colB, colC = st.columns(3)
     with colA:
-        if st.button("\u23f1 End Shift"):
+        if st.button("End Shift"):
             st.query_params["page"] = "End Shift"
             st.rerun()
     with colB:
-        if st.button("\ud83d\udcc4 Weekly Stats Upload"):
+        if st.button("Weekly Stats Upload"):
             st.query_params["page"] = "Weekly Upload"
             st.rerun()
     with colC:
-        if st.button("\ud83d\udccb Paste Uber Trips Table"):
+        if st.button("Paste Uber Trips Table"):
             st.query_params["page"] = "Paste Uber Trips Table"
             st.rerun()
 
 elif page == "End Shift":
-    st.subheader("\ud83d\udecc End Shift")
+    st.subheader("End Shift")
 
     end_date = st.date_input("Date", value=date.today())
     end_time = st.time_input("End Time", value=datetime.now().time())
     end_odo = st.number_input("Ending Odometer", value=get_latest_odo(shifts_sheet), step=1, format="%d")
 
-    if st.button("\u2705 Submit End Shift"):
+    if st.button("Submit End Shift"):
         try:
             row = {
                 "start_time": st.session_state.start_time.strftime("%H:%M"),
@@ -180,6 +180,6 @@ elif page == "End Shift":
         except Exception as e:
             st.error(f"Error saving shift: {e}")
 
-    if st.button("\ud83d\udd19 Back to Home"):
+    if st.button("Back to Home"):
         st.query_params["page"] = "Home"
         st.rerun()
