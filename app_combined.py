@@ -70,7 +70,7 @@ if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 
 if not st.session_state["authenticated"]:
-    st.title("Enter PIN to Access Uber Go")
+    st.title("Enter PIN")
     pin_input = st.text_input("Enter 4-digit PIN", type="password", max_chars=4, key="pin", input_type="number")
 
     if pin_input == "1305":
