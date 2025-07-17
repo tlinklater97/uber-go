@@ -59,9 +59,10 @@ elif page == "End Shift":
     with col1:
         end_time = st.time_input("End Time", value=datetime.now().time())
     with col2:
-        end_odo = st.number_input("End Odometer", min_value=0, value=0)
-    with col3:
         end_date = st.date_input("Date", value=date.today())
+    with col3:
+        end_odo = st.number_input("Odometer", value=get_latest_odo(shifts_sheet))
+    
 
     if st.button("Submit End Shift"):
         try:
