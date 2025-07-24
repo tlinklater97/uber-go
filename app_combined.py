@@ -22,19 +22,11 @@ def get_sheet():
     return client.open(SPREADSHEET_NAME).worksheet(SHEET_TAB)
 
 # === TIME + DATE UTILS ===
-def get_current_time():
+def get_nz_now():
     return datetime.now(pytz.timezone("Pacific/Auckland"))
 
-def get_today_date():
-    return get_current_time().strftime("%Y-%m-%d")
-
-def to_iso_timestamp():
-    return get_current_time().isoformat()
-
-# === DARK MODE SETUP ===
 st.set_page_config(page_title="Uber Go", layout="centered")
-st.markdown(
-    """
+st.markdown("""
     <style>
     body, .stApp {
         background-color: #121212;
@@ -44,87 +36,74 @@ st.markdown(
         background-color: #1e1e1e !important;
         color: #fff !important;
     }
-    .css-1cpxqw2 {
-        padding-bottom: 1rem;
-    }
     </style>
-    """,
-    unsafe_allow_html=True
-)
+    """, unsafe_allow_html=True)
 
 st.title("🚗 Uber Go")
 
 # === SESSION STATE ===
-if "start_time" not in st.session_state:
-    st.session_state.start_time = None
-if "start_odo" not in st.session_state:
-    st.session_state.start_odo = None
+if "shift_data" not in st.session_state:
+    st.session_state.shift_data = {}
 
 # === START SHIFT ===
 st.subheader("Start Shift")
-with st.form("start_shift_form"):
-    start_time = st.time_input("Start Time", value=datetime.now().time())
+with st.form("start_shift"):
+    start_time = st.time_input("Start Time", value=get_nz_now().time())
+    start_date = st.date_input("Date", value=get_nz_now().date())
     start_odo = st.number_input("Start Odometer", min_value=0, step=1)
-    submitted_start = st.form_submit_button("Start Shift")
-
-    if submitted_start:
-        st.session_state.start_time = start_time
-        st.session_state.start_odo = start_odo
-        st.success(f"Shift started at {start_time} with odo {start_odo}")
+    start_submit = st.form_submit_button("Start Shift")
+    if start_submit:
+        st.session_state.shift_data = {
+            "start_time": start_time.strftime("%H:%M"),
+            "start_date": start_date.strftime("%Y-%m-%d"),
+            "start_odo": start_odo
+        }
+        st.success("Shift started!")
 
 # === END SHIFT ===
 st.subheader("End Shift")
-with st.form("end_shift_form"):
-    end_time = st.time_input("End Time", value=datetime.now().time())
-    end_odo = st.number_input("End Odometer", min_value=0, step=1)
-    date_input = st.date_input("Date", value=datetime.today())
-    ocr_img = st.file_uploader("Upload Screenshot for Earnings (optional)", type=["jpg", "png"])
-    source_type = st.radio("Entry Method", ["manual", "ocr", "manual + ocr"])
-    submit_end = st.form_submit_button("End Shift")
+if st.session_state.shift_data:
+    with st.form("end_shift"):
+        end_time = st.time_input("End Time", value=get_nz_now().time())
+        end_odo = st.number_input("End Odometer", min_value=0, step=1)
+        ocr_img = st.file_uploader("Upload Uber Earnings Screenshot", type=["jpg", "png"])
+        end_submit = st.form_submit_button("End Shift")
 
-    if submit_end:
-        # === Parse OCR Text if given ===
-        ocr_text = ""
-        gross = ""
-        if ocr_img:
+        if end_submit:
+            ocr_text = ""
+            gross = ""
+            if ocr_img:
+                try:
+                    img = Image.open(io.BytesIO(ocr_img.read()))
+                    ocr_text = pytesseract.image_to_string(img)
+                    if "Total earnings" in ocr_text:
+                        match = [line for line in ocr_text.splitlines() if "$" in line or "NZ$" in line]
+                        if match:
+                            raw_val = match[-1].replace("NZ$", "").replace("$", "").strip()
+                            gross = float(raw_val)
+                except Exception as e:
+                    st.warning(f"OCR failed: {e}")
+
+            row = [
+                st.session_state.shift_data.get("start_time", ""),
+                st.session_state.shift_data.get("start_odo", ""),
+                end_time.strftime("%H:%M"),
+                end_odo,
+                st.session_state.shift_data.get("start_date", ""),
+                get_nz_now().isoformat(),
+                gross,
+                "", "", "", "", "", ocr_text[:500], "auto"
+            ]
+
             try:
-                img = Image.open(io.BytesIO(ocr_img.read()))
-                ocr_text = pytesseract.image_to_string(img)
-                if "Total earnings" in ocr_text:
-                    match = [line for line in ocr_text.splitlines() if "$" in line or "NZ$" in line]
-                    if match:
-                        raw_val = match[-1].replace("NZ$", "").replace("$", "").strip()
-                        gross = float(raw_val)
+                sheet = get_sheet()
+                sheet.append_row(row, value_input_option="USER_ENTERED")
+                st.success("Shift logged to Google Sheets!")
             except Exception as e:
-                st.warning(f"OCR failed: {e}")
-
-        # === Build Row ===
-        row = [
-            st.session_state.start_time.strftime("%H:%M") if st.session_state.start_time else "",
-            st.session_state.start_odo,
-            end_time.strftime("%H:%M"),
-            end_odo,
-            date_input.strftime("%Y-%m-%d"),
-            to_iso_timestamp(),
-            gross if source_type in ["ocr", "manual + ocr"] else "",
-            "",  # net_earnings
-            "",  # trips
-            "",  # tips
-            "",  # boosts
-            "",  # promotions
-            ocr_text[:500],  # truncated for length
-            source_type
-        ]
-
-        try:
-            sheet = get_sheet()
-            sheet.append_row(row, value_input_option="USER_ENTERED")
-            st.success("Shift logged to Google Sheets!")
-        except Exception as e:
-            st.error(f"Error uploading to Google Sheets: {e}")
-            st.text("Backup data:")
-            st.json(dict(zip([
-                "start_time", "start_odo", "end_time", "end_odo", "date", "timestamp", 
-                "gross_earnings", "net_earnings", "trips", "tips", "boosts", 
-                "promotions", "ocr_text", "source"
-            ], row)))
+                st.error(f"Google Sheets upload failed: {e}")
+                st.json(dict(zip([
+                    "start_time", "start_odo", "end_time", "end_odo", "date", "timestamp", 
+                    "gross_earnings", "net_earnings", "trips", "tips", "boosts", "promotions", "ocr_text", "source"
+                ], row)))
+else:
+    st.info("Start a shift first to enable end shift logging.")
