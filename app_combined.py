@@ -2,76 +2,75 @@ import streamlit as st
 from google.oauth2 import service_account
 import gspread
 from datetime import datetime
-from PIL import Image
 import pytesseract
-import io
+from PIL import Image
 
-# ------------------ CONFIG ------------------
-
+# -------------------- PAGE CONFIG --------------------
 st.set_page_config(page_title="Uber Go", layout="centered")
+st.title("Uber Go")
 
-# Authenticate with Streamlit secrets
+# -------------------- GOOGLE SHEETS AUTH --------------------
+SCOPES = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
+
 gcp_info = dict(st.secrets["gcp_service_account"])
 gcp_info["private_key"] = gcp_info["private_key"].replace("\\n", "\n")
-credentials = service_account.Credentials.from_service_account_info(gcp_info)
+
+credentials = service_account.Credentials.from_service_account_info(gcp_info, scopes=SCOPES)
 gc = gspread.authorize(credentials)
+
 SPREADSHEET_ID = st.secrets["general"]["spreadsheet_id"]
 sh = gc.open_by_key(SPREADSHEET_ID)
 worksheet = sh.worksheet("Shifts")
 
-st.title("Uber Go")
-
-# ------------------ SHIFT LOGIC ------------------
-
+# -------------------- SHIFT LOGIC --------------------
 if "shift_started" not in st.session_state:
     st.session_state.shift_started = False
 
+# -------------------- START SHIFT --------------------
 if not st.session_state.shift_started:
     st.header("Start Shift")
-    with st.form("start_form"):
-        start_date = st.date_input("Date", value=datetime.today())
-        start_time = st.time_input("Start Time", value=datetime.now().time())
-        start_odo = st.number_input("Odometer", min_value=0, step=1)
-        start_submit = st.form_submit_button("Submit")
-        if start_submit:
-            st.session_state.start_date = start_date.strftime("%d/%m/%Y")
-            st.session_state.start_time = start_time.strftime("%H:%M")
-            st.session_state.start_odo = start_odo
-            st.session_state.shift_started = True
-            st.success("Shift started.")
-else:
+    with st.form("start_shift_form"):
+        shift_date = st.date_input("Date")
+        start_time = st.time_input("Start Time")
+        start_odo = st.number_input("Start Odometer", min_value=0, step=1)
+        submitted = st.form_submit_button("Submit Start")
+
+    if submitted:
+        st.session_state.shift_started = True
+        st.session_state.start_date = shift_date.strftime("%d/%m/%Y")
+        st.session_state.start_time = start_time.strftime("%H:%M")
+        st.session_state.start_odo = start_odo
+        st.success("Shift started.")
+
+# -------------------- END SHIFT --------------------
+if st.session_state.shift_started:
     st.header("End Shift")
-    with st.form("end_form"):
-        end_date = st.date_input("Date", value=datetime.today())
-        end_time = st.time_input("End Time", value=datetime.now().time())
-        end_odo = st.number_input("Odometer", min_value=0, step=1)
-        screenshot = st.file_uploader("Upload Uber screenshot", type=["png", "jpg", "jpeg"])
-        end_submit = st.form_submit_button("Submit")
+    with st.form("end_shift_form"):
+        end_date = st.date_input("End Date")
+        end_time = st.time_input("End Time")
+        end_odo = st.number_input("End Odometer", min_value=0, step=1)
+        uploaded_file = st.file_uploader("Upload Uber screenshot", type=["png", "jpg", "jpeg"])
 
-        if end_submit:
-            gross_earnings = ""
-            ocr_text = ""
+        parsed_earnings = ""
+        if uploaded_file:
+            image = Image.open(uploaded_file)
+            ocr_text = pytesseract.image_to_string(image)
+            st.text_area("Parsed OCR Text", ocr_text, height=200)
 
-            if screenshot:
-                image_bytes = screenshot.read()
-                image = Image.open(io.BytesIO(image_bytes))
-                ocr_text = pytesseract.image_to_string(image)
-                lines = ocr_text.splitlines()
-                for line in lines:
-                    if "$" in line or "NZ$" in line:
-                        try:
-                            gross_earnings = (
-                                line.replace("NZ$", "")
-                                .replace("$", "")
-                                .replace(",", "")
-                                .strip()
-                            )
-                            float(gross_earnings)
-                            break
-                        except:
-                            continue
+            # Extract only the first number with $ to simulate earnings
+            import re
+            match = re.search(r"\$?(\d{1,4}\.\d{2})", ocr_text)
+            if match:
+                parsed_earnings = match.group(1)
+                st.success(f"Earnings parsed: ${parsed_earnings}")
+            else:
+                st.warning("No earnings value detected.")
 
-            # Log to Google Sheet
+        submitted = st.form_submit_button("Submit End")
+        if submitted:
             row = [
                 st.session_state.start_time,
                 st.session_state.start_odo,
@@ -79,13 +78,16 @@ else:
                 end_odo,
                 st.session_state.start_date,
                 datetime.now().isoformat(),
-                gross_earnings,
-                "", "", "", "", "", "", "", "",  # net, trips, tips, boosts, etc.
+                parsed_earnings,
+                "", "", "", "", "", "", "", "",
                 end_odo - st.session_state.start_odo,
-                "", "",  # online time
-                ocr_text,
+                "", "", ocr_text if uploaded_file else "",
                 "Uber"
             ]
             worksheet.append_row(row)
             st.success("Shift logged.")
-            st.session_state.shift_started = False  # Reset for next shift
+            st.session_state.shift_started = False
+
+# -------------------- FOOTER --------------------
+st.markdown("---")
+st.caption("Built with ❤️ by Tom")
