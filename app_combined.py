@@ -29,7 +29,8 @@ credentials_dict = {
 
 credentials = service_account.Credentials.from_service_account_info(credentials_dict)
 client = gspread.authorize(credentials)
-spreadsheet = client.open_by_key(st.secrets["spreadsheet_id"])
+spreadsheet = client.open_by_key(st.secrets["secrets"]["spreadsheet_id"])
+
 worksheet = spreadsheet.worksheet("Shifts")
 
 def extract_earnings_from_text(ocr_text):
