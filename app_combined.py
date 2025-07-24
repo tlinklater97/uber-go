@@ -1,53 +1,71 @@
 import streamlit as st
-import pytesseract
-from PIL import Image
-import re
-import gspread
 from google.oauth2 import service_account
+import gspread
+from datetime import datetime
 
-# Load service account credentials from secrets
-credentials_dict = st.secrets["gcp_service_account"]
-credentials = service_account.Credentials.from_service_account_info(credentials_dict)
-client = gspread.authorize(credentials)
+# Authenticate using Streamlit secrets
+credentials = service_account.Credentials.from_service_account_info(
+    st.secrets["gcp_service_account"]
+)
 
-# Load spreadsheet using the nested 'general' key
-spreadsheet = client.open_by_key(st.secrets["general"]["spreadsheet_id"])
-worksheet = spreadsheet.worksheet("Shifts")
+# Open Google Sheet
+gc = gspread.authorize(credentials)
+SPREADSHEET_ID = st.secrets["general"]["spreadsheet_id"]
+sh = gc.open_by_key(SPREADSHEET_ID)
+worksheet = sh.worksheet("Shifts")
 
-# Streamlit UI setup
-st.set_page_config(page_title="Uber Go - OCR Earnings Parser", layout="centered", initial_sidebar_state="collapsed")
-st.title("📸 Upload Uber Screenshot for Earnings Parsing")
+st.set_page_config(page_title="Uber Go", layout="centered", page_icon="🚗")
+st.title("Uber Go")
 
-uploaded_file = st.file_uploader("Upload Uber Earnings Screenshot", type=["png", "jpg", "jpeg"])
+# Section: Start a new shift
+st.header("Start Shift")
+with st.form("start_shift_form"):
+    start_time = st.time_input("Start Time")
+    start_odo = st.number_input("Start Odometer", min_value=0, step=1)
+    submitted_start = st.form_submit_button("Submit Start")
+    if submitted_start:
+        st.session_state["shift_start_time"] = start_time
+        st.session_state["shift_start_odo"] = start_odo
+        st.session_state["shift_start_date"] = datetime.now().strftime("%d/%m/%Y")
+        st.success("Start shift recorded.")
 
-def extract_earnings_from_text(ocr_text):
-    # Try to match "Total earnings" first
-    match = re.search(r"Total earnings.*?\$([0-9]+\.[0-9]{2})", ocr_text, re.IGNORECASE)
-    if match:
-        return float(match.group(1))
+# Section: End shift
+st.header("End Shift")
+with st.form("end_shift_form"):
+    end_time = st.time_input("End Time")
+    end_odo = st.number_input("End Odometer", min_value=0, step=1)
+    uploaded_file = st.file_uploader("Upload Uber screenshot (optional)", type=["png", "jpg", "jpeg"])
+    submitted_end = st.form_submit_button("Submit End")
+    if submitted_end:
+        if "shift_start_time" not in st.session_state:
+            st.error("You must start a shift first.")
+        else:
+            # Combine shift data
+            row = [
+                st.session_state["shift_start_time"].strftime("%H:%M"),
+                st.session_state["shift_start_odo"],
+                end_time.strftime("%H:%M"),
+                end_odo,
+                st.session_state["shift_start_date"],
+                datetime.now().isoformat(),
+                "",  # gross_earnings
+                "",  # net_earnings
+                "",  # trips
+                "",  # tips
+                "",  # boosts
+                "",  # promotions
+                "",  # adjustments
+                "",  # cancellation_fees
+                "",  # referrals
+                end_odo - st.session_state["shift_start_odo"],
+                "",  # online_hours
+                "",  # online_minutes
+                "",  # ocr_text
+                "Uber"
+            ]
+            worksheet.append_row(row)
+            st.success("Shift logged.")
 
-    # Fallback: find first dollar amount
-    fallback = re.search(r"\$([0-9]+\.[0-9]{2})", ocr_text)
-    if fallback:
-        return float(fallback.group(1))
-
-    return 0.0
-
-if uploaded_file:
-    image = Image.open(uploaded_file)
-    st.image(image, caption="Uploaded Screenshot", use_column_width=True)
-
-    with st.spinner("Extracting text with OCR..."):
-        ocr_text = pytesseract.image_to_string(image)
-
-    st.text_area("🔍 OCR Extracted Text", ocr_text, height=300)
-
-    gross_earnings = extract_earnings_from_text(ocr_text)
-    st.success(f"Detected Gross Earnings: ${gross_earnings:.2f}")
-
-    if st.button("✅ Save to Google Sheet"):
-        new_row = [None, None, None, None, None, None, gross_earnings, None, None, None, None, None, None, None, None, None, ocr_text, "screenshot"]
-        worksheet.append_row(new_row)
-        st.success("Data saved to Google Sheet ✅")
-else:
-    st.info("Please upload a screenshot of your Uber weekly earnings screen.")
+# Optional footer
+st.markdown("---")
+st.caption("Built with ❤️ by Tom")
