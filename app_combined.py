@@ -6,6 +6,9 @@ import re
 import gspread
 from google.oauth2 import service_account
 
+st.write("Loaded secrets:", st.secrets.keys())
+
+
 # Set Streamlit page config
 st.set_page_config(page_title="Uber Go - OCR Earnings Parser", layout="centered", initial_sidebar_state="collapsed")
 st.title("📸 Upload Uber Screenshot for Earnings Parsing")
