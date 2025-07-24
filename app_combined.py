@@ -1,109 +1,122 @@
 import streamlit as st
-from datetime import datetime
+from datetime import datetime, date
+import base64
+import os
 import pytz
 import gspread
 from google.oauth2.service_account import Credentials
-import pytesseract
 from PIL import Image
-import io
+import pytesseract
 
-# === CONFIG ===
+# ---- CONFIG ----
 SERVICE_ACCOUNT_FILE = "ubergosync-13d16bd466a9.json"
 SPREADSHEET_NAME = "Uber Go - Earnings Tracker"
 SHEET_TAB = "Shifts"
 
-# === SETUP GOOGLE SHEETS ===
-def get_sheet():
+# ---- SHEET CONNECT ----
+def connect_sheet():
     creds = Credentials.from_service_account_file(
         SERVICE_ACCOUNT_FILE,
         scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
     )
     client = gspread.authorize(creds)
-    return client.open(SPREADSHEET_NAME).worksheet(SHEET_TAB)
+    sheet = client.open(SPREADSHEET_NAME).worksheet(SHEET_TAB)
+    return sheet
 
-# === TIME + DATE UTILS ===
-def get_nz_now():
-    return datetime.now(pytz.timezone("Pacific/Auckland"))
-
-st.set_page_config(page_title="Uber Go", layout="centered")
-st.markdown("""
-    <style>
-    body, .stApp {
-        background-color: #121212;
-        color: #fff;
-    }
-    input, textarea {
-        background-color: #1e1e1e !important;
-        color: #fff !important;
-    }
-    </style>
+# ---- FONT INJECTION ----
+font_path = "fonts/FFClanProBold.TTF"
+if os.path.exists(font_path):
+    with open(font_path, "rb") as f:
+        ttf_base64 = base64.b64encode(f.read()).decode("utf-8")
+    st.markdown(f"""
+        <style>
+        @font-face {{
+            font-family: 'FFClanProBold';
+            src: url(data:font/ttf;base64,{ttf_base64}) format('truetype');
+        }}
+        html, body {{
+            font-family: 'FFClanProBold', sans-serif;
+            background-color: #0e1117;
+            color: #f5f5f5;
+        }}
+        .stApp {{ padding: 1rem; }}
+        </style>
     """, unsafe_allow_html=True)
 
-st.title("🚗 Uber Go")
+# ---- PAGE CONFIG ----
+st.set_page_config(page_title="Uber Go", layout="centered")
+st.title("Uber Go – Shift Logger")
 
-# === SESSION STATE ===
-if "shift_data" not in st.session_state:
-    st.session_state.shift_data = {}
+# ---- SESSION INIT ----
+if "start_date" not in st.session_state:
+    st.session_state.start_date = date.today()
+    st.session_state.start_time = datetime.now().strftime("%H:%M")
+    st.session_state.start_odo = 0
 
-# === START SHIFT ===
+# ---- START SHIFT ----
 st.subheader("Start Shift")
-with st.form("start_shift"):
-    start_time = st.time_input("Start Time", value=get_nz_now().time())
-    start_date = st.date_input("Date", value=get_nz_now().date())
-    start_odo = st.number_input("Start Odometer", min_value=0, step=1)
-    start_submit = st.form_submit_button("Start Shift")
-    if start_submit:
-        st.session_state.shift_data = {
-            "start_time": start_time.strftime("%H:%M"),
-            "start_date": start_date.strftime("%Y-%m-%d"),
-            "start_odo": start_odo
-        }
-        st.success("Shift started!")
+start_date = st.date_input("Date", value=st.session_state.start_date)
+start_time = st.text_input("Start Time (HH:MM)", value=st.session_state.start_time)
+start_odo = st.number_input("Start Odometer", step=1, value=st.session_state.start_odo)
 
-# === END SHIFT ===
+if st.button("Save Start Shift"):
+    st.session_state.start_date = start_date
+    st.session_state.start_time = start_time
+    st.session_state.start_odo = start_odo
+    st.success("Start shift saved!")
+
+# ---- END SHIFT ----
+st.markdown("---")
 st.subheader("End Shift")
-if st.session_state.shift_data:
-    with st.form("end_shift"):
-        end_time = st.time_input("End Time", value=get_nz_now().time())
-        end_odo = st.number_input("End Odometer", min_value=0, step=1)
-        ocr_img = st.file_uploader("Upload Uber Earnings Screenshot", type=["jpg", "png"])
-        end_submit = st.form_submit_button("End Shift")
+end_time = st.text_input("End Time (HH:MM)")
+end_odo = st.number_input("End Odometer", step=1)
+image_file = st.file_uploader("Upload Earnings Screenshot", type=["png", "jpg", "jpeg"])
 
-        if end_submit:
-            ocr_text = ""
-            gross = ""
-            if ocr_img:
-                try:
-                    img = Image.open(io.BytesIO(ocr_img.read()))
-                    ocr_text = pytesseract.image_to_string(img)
-                    if "Total earnings" in ocr_text:
-                        match = [line for line in ocr_text.splitlines() if "$" in line or "NZ$" in line]
-                        if match:
-                            raw_val = match[-1].replace("NZ$", "").replace("$", "").strip()
-                            gross = float(raw_val)
-                except Exception as e:
-                    st.warning(f"OCR failed: {e}")
+ocr_text = ""
+gross = ""
+net = ""
+tips = ""
+boosts = ""
+promos = ""
+trips = ""
 
-            row = [
-                st.session_state.shift_data.get("start_time", ""),
-                st.session_state.shift_data.get("start_odo", ""),
-                end_time.strftime("%H:%M"),
-                end_odo,
-                st.session_state.shift_data.get("start_date", ""),
-                get_nz_now().isoformat(),
-                gross,
-                "", "", "", "", "", ocr_text[:500], "auto"
-            ]
+if image_file:
+    try:
+        image = Image.open(image_file)
+        ocr_text = pytesseract.image_to_string(image)
 
-            try:
-                sheet = get_sheet()
-                sheet.append_row(row, value_input_option="USER_ENTERED")
-                st.success("Shift logged to Google Sheets!")
-            except Exception as e:
-                st.error(f"Google Sheets upload failed: {e}")
-                st.json(dict(zip([
-                    "start_time", "start_odo", "end_time", "end_odo", "date", "timestamp", 
-                    "gross_earnings", "net_earnings", "trips", "tips", "boosts", "promotions", "ocr_text", "source"
-                ], row)))
-else:
-    st.info("Start a shift first to enable end shift logging.")
+        # Try to parse total earnings
+        import re
+        earnings_match = re.search(r"Total earnings\s*\$?([0-9]+\.?[0-9]*)", ocr_text)
+        if earnings_match:
+            gross = earnings_match.group(1)
+        else:
+            st.warning("Could not extract total earnings from screenshot.")
+    except Exception as e:
+        st.error(f"OCR failed: {e}")
+
+if st.button("Submit End Shift"):
+    try:
+        sheet = connect_sheet()
+        tz = pytz.timezone("Pacific/Auckland")
+        now = datetime.now(tz).isoformat()
+        row = {
+            "start_time": st.session_state.start_time,
+            "start_odo": st.session_state.start_odo,
+            "end_time": end_time,
+            "end_odo": end_odo,
+            "date": start_date.strftime("%Y-%m-%d"),
+            "timestamp": now,
+            "gross_earnings": gross,
+            "net_earnings": net,
+            "trips": trips,
+            "tips": tips,
+            "boosts": boosts,
+            "promotions": promos,
+            "ocr_text": ocr_text,
+            "source": "auto"
+        }
+        sheet.append_row(list(row.values()))
+        st.success("Shift submitted to Google Sheets!")
+    except Exception as e:
+        st.error(f"Google Sheets upload failed: {e}")
