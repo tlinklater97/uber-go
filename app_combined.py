@@ -12,8 +12,9 @@ if not st.session_state.get("unlocked", False):
     code = st.text_input("Enter passcode to unlock:", type="password")
     if code == "1305":
         st.session_state.unlocked = True
-        st.success("Access granted. Please refresh to continue.")
-    st.stop()
+        st.success("Access granted. You can now continue.")
+    else:
+        st.stop()
 
 # ------------------ GOOGLE SHEETS SETUP ------------------
 # Fix newline encoding in private key
