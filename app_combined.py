@@ -1,81 +1,116 @@
 import streamlit as st
 from datetime import datetime, date
-from PIL import Image
-import pytesseract
-import io
 import gspread
 from google.oauth2.service_account import Credentials
+from PIL import Image
+import pytesseract
+import base64
+import io
 
-# Authenticate using Streamlit secrets
-creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"])
-gc = gspread.authorize(creds)
-sheet = gc.open("Uber Go - Earnings Tracker").worksheet("Shifts")
+# ------------------ SETUP ------------------ #
 
-st.set_page_config(page_title="Uber Go", layout="centered", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Uber Go", layout="centered")
+
+# Load custom font and dark theme
+font_path = "fonts/FFClanProBold.TTF"
+with open(font_path, "rb") as f:
+    ttf_base64 = base64.b64encode(f.read()).decode("utf-8")
+st.markdown(f"""
+    <style>
+    @font-face {{
+        font-family: 'UberFont';
+        src: url(data:font/ttf;base64,{ttf_base64}) format('truetype');
+    }}
+    html, body, [class*="css"] {{
+        font-family: 'UberFont', sans-serif;
+        background-color: #0e1117;
+        color: #f5f5f5;
+    }}
+    .stApp {{ padding: 0; }}
+    </style>
+""", unsafe_allow_html=True)
+
+# ------------------ AUTH ------------------ #
+
+if "authenticated" not in st.session_state:
+    st.session_state["authenticated"] = False
+
+if not st.session_state["authenticated"]:
+    st.title("🔒 Uber Go")
+    pin = st.text_input("Enter PIN", type="password", max_chars=4)
+    if pin == "1305":
+        st.session_state["authenticated"] = True
+        st.rerun()
+    elif len(pin) == 4:
+        st.error("Incorrect PIN")
+    st.stop()
+
+# ------------------ GOOGLE SHEETS ------------------ #
+
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=SCOPES)
+client = gspread.authorize(creds)
+sheet = client.open("Uber Go - Earnings Tracker").worksheet("Shifts")
+
+# ------------------ MAIN APP ------------------ #
+
 st.title("Uber Go")
+page = st.radio("Select Page", ["Start Shift", "End Shift"], horizontal=True)
 
-# Initialize session state
-if "start_time" not in st.session_state:
-    st.session_state.start_time = None
-if "start_odo" not in st.session_state:
-    st.session_state.start_odo = None
+# ------------------ START SHIFT ------------------ #
 
-st.subheader("Start Shift")
-with st.form("start_shift_form"):
-    start_time = st.time_input("Start Time", value=datetime.now().time())
-    start_odo = st.number_input("Starting Odometer", min_value=0, step=1)
-    submitted_start = st.form_submit_button("Start Shift")
-    if submitted_start:
-        st.session_state.start_time = start_time.strftime("%H:%M")
-        st.session_state.start_odo = start_odo
-        st.success("Shift started.")
+if page == "Start Shift":
+    st.subheader("🚗 Start Shift")
+    date_input = st.date_input("Date", value=date.today())
+    time_input = st.time_input("Start Time", value=datetime.now().time())
+    odo_input = st.number_input("Odometer (km)", min_value=0, step=1)
 
-st.subheader("End Shift")
-with st.form("end_shift_form"):
+    if st.button("Save Start"):
+        st.session_state["shift_start"] = {
+            "date": date_input,
+            "time": time_input,
+            "odo": odo_input
+        }
+        st.success("Start shift saved!")
+
+# ------------------ END SHIFT ------------------ #
+
+if page == "End Shift":
+    st.subheader("🏁 End Shift")
+
+    if "shift_start" not in st.session_state:
+        st.warning("Please start a shift first.")
+        st.stop()
+
+    end_date = st.date_input("Date", value=date.today())
     end_time = st.time_input("End Time", value=datetime.now().time())
-    end_odo = st.number_input("Ending Odometer", min_value=0, step=1)
-    uploaded_image = st.file_uploader("Upload Screenshot", type=["png", "jpg", "jpeg"])
-    manual_date = st.date_input("Shift Date", value=date.today())
-    submitted_end = st.form_submit_button("End Shift")
+    end_odo = st.number_input("Odometer (km)", min_value=0, step=1)
 
-if submitted_end:
-    timestamp = datetime.now().isoformat()
+    screenshot = st.file_uploader("Upload Uber Screenshot", type=["png", "jpg", "jpeg"])
     ocr_text = ""
-    gross = ""
+    if screenshot:
+        img = Image.open(screenshot)
+        ocr_text = pytesseract.image_to_string(img)
 
-    if uploaded_image:
-        image = Image.open(uploaded_image)
-        text = pytesseract.image_to_string(image)
-        ocr_text = text
-
-        # Extract gross earnings
-        for line in text.splitlines():
-            if "Total earnings" in line:
-                try:
-                    gross = float(line.split()[-1].replace("$", "").strip())
-                    break
-                except ValueError:
-                    pass
-
-    data = [
-        st.session_state.start_time,
-        st.session_state.start_odo,
-        end_time.strftime("%H:%M"),
-        end_odo,
-        manual_date.strftime("%Y-%m-%d"),
-        timestamp,
-        gross,
-        "",  # net earnings
-        "",  # trips
-        "",  # tips
-        "",  # boosts
-        "",  # promotions
-        ocr_text,
-        "auto"
-    ]
-
-    try:
-        sheet.append_row(data)
-        st.success("Shift data uploaded successfully.")
-    except Exception as e:
-        st.error(f"Google Sheets upload failed: {e}")
+    if st.button("Submit Shift"):
+        start = st.session_state["shift_start"]
+        mileage = end_odo - start["odo"]
+        row = [
+            start["time"].strftime("%H:%M"),
+            start["odo"],
+            end_time.strftime("%H:%M"),
+            end_odo,
+            end_date.strftime("%Y-%m-%d"),
+            datetime.now().isoformat(),
+            "", "", "", "", "", "", "", "",  # earnings placeholders
+            mileage,
+            "", "",  # duration placeholders
+            ocr_text,
+            "manual + ocr"
+        ]
+        try:
+            sheet.append_row(row)
+            st.success("Shift saved to Google Sheets.")
+            del st.session_state["shift_start"]
+        except Exception as e:
+            st.error(f"Failed to save shift: {e}")
