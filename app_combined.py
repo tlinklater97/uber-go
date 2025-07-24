@@ -47,10 +47,11 @@ if not st.session_state["authenticated"]:
 
 # ------------------ GOOGLE SHEETS ------------------ #
 
+SPREADSHEET_ID = "1ICxtmGHDPWgAR64rIQGNezAPftcAxlLCGZtP-BR6t34"
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=SCOPES)
 client = gspread.authorize(creds)
-sheet = client.open("Uber Go - Earnings Tracker").worksheet("Shifts")
+sheet = client.open_by_key(SPREADSHEET_ID).worksheet("Shifts")
 
 # ------------------ MAIN APP ------------------ #
 
