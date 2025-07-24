@@ -54,6 +54,15 @@ creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"],
 client = gspread.authorize(creds)
 sheet = client.open_by_key(SPREADSHEET_ID).worksheet("Shifts")
 
+# ------------------ HELPER FUNCTIONS ------------------ #
+
+def extract_gross_earnings(ocr_text):
+    matches = re.findall(r"\$([0-9]+\.[0-9]{2})", ocr_text)
+    if matches:
+        # Return the largest $ amount (usually gross fare)
+        return float(max(matches, key=lambda x: float(x)))
+    return 0.0
+
 # ------------------ MAIN APP ------------------ #
 
 st.title("Uber Go")
@@ -95,15 +104,8 @@ if page == "End Shift":
     if screenshot:
         img = Image.open(screenshot)
         ocr_text = pytesseract.image_to_string(img)
-
-        # Extract gross earnings from OCR text
-        match = re.search(r"Total earnings\s*\$?NZ?\$?(\d+\.\d{2})", ocr_text)
-        if match:
-            gross_earnings = float(match.group(1))
-        else:
-            fallback = re.search(r"\$?NZ?\$?(\d+\.\d{2})", ocr_text)
-            if fallback:
-                gross_earnings = float(fallback.group(1))
+        gross_earnings = extract_gross_earnings(ocr_text)
+        st.markdown(f"**Parsed Gross Earnings:** ${gross_earnings:.2f}")
 
     if st.button("Submit Shift"):
         start = st.session_state["shift_start"]
@@ -115,9 +117,9 @@ if page == "End Shift":
             end_odo,
             end_date.strftime("%Y-%m-%d"),
             datetime.now().isoformat(),
-            gross_earnings, "", "", "", "", "", "", "",  # only gross filled
+            gross_earnings, "", "", "", "", "", "", "",  # Only gross filled
             mileage,
-            "", "",  # online hours, minutes
+            "", "",  # online hours/minutes placeholders
             ocr_text,
             "manual + ocr"
         ]
