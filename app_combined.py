@@ -1,131 +1,130 @@
 import streamlit as st
-from datetime import datetime, date
+from datetime import datetime
+import pytz
 import gspread
 from google.oauth2.service_account import Credentials
-from utils.sheets import connect_to_sheet, get_latest_odo
-from PIL import Image
 import pytesseract
+from PIL import Image
 import io
-import base64
-import os
 
-# ---- FONT & THEME ----
-font_path = "fonts/FFClanProBold.TTF"
-if os.path.exists(font_path):
-    with open(font_path, "rb") as f:
-        ttf_base64 = base64.b64encode(f.read()).decode("utf-8")
-    st.markdown(f"""
-        <style>
-        @font-face {{
-            font-family: 'FFClanProBold';
-            src: url(data:font/ttf;base64,{ttf_base64}) format('truetype');
-        }}
-        html, body {{
-            font-family: 'FFClanProBold', sans-serif;
-            background-color: #0e1117;
-            color: #f5f5f5;
-            overflow: hidden;
-        }}
-        .stApp {{ padding: 0 !important; }}
-        </style>
-    """, unsafe_allow_html=True)
-else:
-    st.error("Missing font file: fonts/FFClanProBold.TTF")
-    st.stop()
-
-# ---- PAGE CONFIG ----
-st.set_page_config(page_title="Uber Go", layout="centered")
-
-# ---- GOOGLE SHEETS ----
+# === CONFIG ===
+SERVICE_ACCOUNT_FILE = "ubergosync-13d16bd466a9.json"
 SPREADSHEET_NAME = "Uber Go - Earnings Tracker"
-shifts_sheet = connect_to_sheet(SPREADSHEET_NAME, "Shifts")
+SHEET_TAB = "Shifts"
 
-# ---- AUTH (PIN) ----
-if "authenticated" not in st.session_state:
-    st.session_state["authenticated"] = False
+# === SETUP GOOGLE SHEETS ===
+def get_sheet():
+    creds = Credentials.from_service_account_file(
+        SERVICE_ACCOUNT_FILE,
+        scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+    )
+    client = gspread.authorize(creds)
+    return client.open(SPREADSHEET_NAME).worksheet(SHEET_TAB)
 
-if not st.session_state["authenticated"]:
-    st.markdown("""
-        <style>
-        .centered-box {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            text-align: center;
-            background-color: #0e1117;
-            color: white;
-        }
-        input[type="password"] {
-            font-size: 32px !important;
-            text-align: center !important;
-            border-radius: 8px !important;
-        }
-        </style>
-        <div class="centered-box">
-    """, unsafe_allow_html=True)
+# === TIME + DATE UTILS ===
+def get_current_time():
+    return datetime.now(pytz.timezone("Pacific/Auckland"))
 
-    st.title("Enter PIN to Access Uber Go")
-    pin_input = st.text_input("Enter 4-digit PIN", type="password", max_chars=4)
+def get_today_date():
+    return get_current_time().strftime("%Y-%m-%d")
 
-    st.markdown("</div>", unsafe_allow_html=True)
+def to_iso_timestamp():
+    return get_current_time().isoformat()
 
-    if pin_input == "1305":
-        st.session_state["authenticated"] = True
-        st.rerun()
-    elif len(pin_input) == 4:
-        st.error("Incorrect PIN")
-    st.stop()
+# === DARK MODE SETUP ===
+st.set_page_config(page_title="Uber Go", layout="centered")
+st.markdown(
+    """
+    <style>
+    body, .stApp {
+        background-color: #121212;
+        color: #fff;
+    }
+    input, textarea {
+        background-color: #1e1e1e !important;
+        color: #fff !important;
+    }
+    .css-1cpxqw2 {
+        padding-bottom: 1rem;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
-# ---- MAIN APP ----
-st.title("Uber Go")
+st.title("🚗 Uber Go")
 
-page = st.radio("Choose Page", ["Start Shift", "End Shift"], horizontal=True)
+# === SESSION STATE ===
+if "start_time" not in st.session_state:
+    st.session_state.start_time = None
+if "start_odo" not in st.session_state:
+    st.session_state.start_odo = None
 
-# ---- START SHIFT ----
-if page == "Start Shift":
-    st.subheader("Start Shift")
-
-    start_date = st.date_input("Date", value=date.today())
+# === START SHIFT ===
+st.subheader("Start Shift")
+with st.form("start_shift_form"):
     start_time = st.time_input("Start Time", value=datetime.now().time())
-    start_odo = st.number_input("Odometer", value=get_latest_odo(shifts_sheet), step=1, format="%d")
+    start_odo = st.number_input("Start Odometer", min_value=0, step=1)
+    submitted_start = st.form_submit_button("Start Shift")
 
-    if st.button("Submit Start"):
-        st.session_state.start_date = start_date
+    if submitted_start:
         st.session_state.start_time = start_time
         st.session_state.start_odo = start_odo
-        st.success("Start shift saved.")
+        st.success(f"Shift started at {start_time} with odo {start_odo}")
 
-# ---- END SHIFT ----
-elif page == "End Shift":
-    st.subheader("End Shift")
-
-    end_date = st.date_input("Date", value=date.today())
+# === END SHIFT ===
+st.subheader("End Shift")
+with st.form("end_shift_form"):
     end_time = st.time_input("End Time", value=datetime.now().time())
-    end_odo = st.number_input("Odometer", value=get_latest_odo(shifts_sheet), step=1, format="%d")
+    end_odo = st.number_input("End Odometer", min_value=0, step=1)
+    date_input = st.date_input("Date", value=datetime.today())
+    ocr_img = st.file_uploader("Upload Screenshot for Earnings (optional)", type=["jpg", "png"])
+    source_type = st.radio("Entry Method", ["manual", "ocr", "manual + ocr"])
+    submit_end = st.form_submit_button("End Shift")
 
-    uploaded_file = st.file_uploader("Upload Uber Earnings Screenshot", type=["png", "jpg", "jpeg"])
-    ocr_text = ""
+    if submit_end:
+        # === Parse OCR Text if given ===
+        ocr_text = ""
+        gross = ""
+        if ocr_img:
+            try:
+                img = Image.open(io.BytesIO(ocr_img.read()))
+                ocr_text = pytesseract.image_to_string(img)
+                if "Total earnings" in ocr_text:
+                    match = [line for line in ocr_text.splitlines() if "$" in line or "NZ$" in line]
+                    if match:
+                        raw_val = match[-1].replace("NZ$", "").replace("$", "").strip()
+                        gross = float(raw_val)
+            except Exception as e:
+                st.warning(f"OCR failed: {e}")
 
-    if uploaded_file:
-        image = Image.open(uploaded_file)
-        ocr_text = pytesseract.image_to_string(image)
+        # === Build Row ===
+        row = [
+            st.session_state.start_time.strftime("%H:%M") if st.session_state.start_time else "",
+            st.session_state.start_odo,
+            end_time.strftime("%H:%M"),
+            end_odo,
+            date_input.strftime("%Y-%m-%d"),
+            to_iso_timestamp(),
+            gross if source_type in ["ocr", "manual + ocr"] else "",
+            "",  # net_earnings
+            "",  # trips
+            "",  # tips
+            "",  # boosts
+            "",  # promotions
+            ocr_text[:500],  # truncated for length
+            source_type
+        ]
 
-    if st.button("Submit End"):
         try:
-            row = {
-                "start_time": st.session_state.start_time.strftime("%H:%M"),
-                "start_odo": st.session_state.start_odo,
-                "end_time": end_time.strftime("%H:%M"),
-                "end_odo": end_odo,
-                "date": end_date.strftime("%Y-%m-%d"),
-                "timestamp": datetime.now().isoformat(),
-                "mileage_estimate": end_odo - st.session_state.start_odo,
-                "ocr_text": ocr_text,
-                "source": "manual + ocr"
-            }
-            shifts_sheet.append_row(list(row.values()))
-            st.success("Shift logged successfully.")
+            sheet = get_sheet()
+            sheet.append_row(row, value_input_option="USER_ENTERED")
+            st.success("Shift logged to Google Sheets!")
         except Exception as e:
-            st.error(f"Error: {e}")
+            st.error(f"Error uploading to Google Sheets: {e}")
+            st.text("Backup data:")
+            st.json(dict(zip([
+                "start_time", "start_odo", "end_time", "end_odo", "date", "timestamp", 
+                "gross_earnings", "net_earnings", "trips", "tips", "boosts", 
+                "promotions", "ocr_text", "source"
+            ], row)))
