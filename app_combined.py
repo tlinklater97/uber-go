@@ -3,6 +3,15 @@ from google.oauth2 import service_account
 import gspread
 from datetime import datetime
 
+
+
+# Fix: decode the private_key's \\n to actual newlines before passing
+gcp_info = dict(st.secrets["gcp_service_account"])
+gcp_info["private_key"] = gcp_info["private_key"].replace("\\n", "\n")
+
+credentials = service_account.Credentials.from_service_account_info(gcp_info)
+
+
 # Authenticate using Streamlit secrets
 credentials = service_account.Credentials.from_service_account_info(
     st.secrets["gcp_service_account"]
