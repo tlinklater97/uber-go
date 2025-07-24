@@ -47,7 +47,7 @@ if not st.session_state["authenticated"]:
 
 # ------------------ GOOGLE SHEETS ------------------ #
 
-SPREADSHEET_ID = "1ICxtmGHDPWgAR64rIQGNezAPftcAxlLCGZtP-BR6t34"
+SPREADSHEET_ID = "1MGOID38_FqkfmJDyCcG5L7wAyuC7L-OAg3LaHbAMb0g"
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=SCOPES)
 client = gspread.authorize(creds)
