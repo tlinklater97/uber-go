@@ -3,26 +3,29 @@ from google.oauth2 import service_account
 import gspread
 from datetime import datetime
 
+# -- FIX: define required scopes --
+SCOPES = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
 
-
-# Fix: decode the private_key's \\n to actual newlines before passing
+# -- FIX: properly decode private key newlines and set scopes --
 gcp_info = dict(st.secrets["gcp_service_account"])
 gcp_info["private_key"] = gcp_info["private_key"].replace("\\n", "\n")
 
-credentials = service_account.Credentials.from_service_account_info(gcp_info)
-
-
-# Authenticate using Streamlit secrets
 credentials = service_account.Credentials.from_service_account_info(
-    st.secrets["gcp_service_account"]
+    gcp_info, scopes=SCOPES
 )
 
-# Open Google Sheet
-gc = gspread.authorize(credentials)
+# -- Load Spreadsheet ID from secrets --
 SPREADSHEET_ID = st.secrets["general"]["spreadsheet_id"]
+
+# -- Google Sheets setup --
+gc = gspread.authorize(credentials)
 sh = gc.open_by_key(SPREADSHEET_ID)
 worksheet = sh.worksheet("Shifts")
 
+# -- Streamlit UI --
 st.set_page_config(page_title="Uber Go", layout="centered", page_icon="🚗")
 st.title("Uber Go")
 
@@ -49,7 +52,6 @@ with st.form("end_shift_form"):
         if "shift_start_time" not in st.session_state:
             st.error("You must start a shift first.")
         else:
-            # Combine shift data
             row = [
                 st.session_state["shift_start_time"].strftime("%H:%M"),
                 st.session_state["shift_start_odo"],
@@ -57,24 +59,13 @@ with st.form("end_shift_form"):
                 end_odo,
                 st.session_state["shift_start_date"],
                 datetime.now().isoformat(),
-                "",  # gross_earnings
-                "",  # net_earnings
-                "",  # trips
-                "",  # tips
-                "",  # boosts
-                "",  # promotions
-                "",  # adjustments
-                "",  # cancellation_fees
-                "",  # referrals
+                "", "", "", "", "", "", "", "", "",  # placeholder earnings data
                 end_odo - st.session_state["shift_start_odo"],
-                "",  # online_hours
-                "",  # online_minutes
-                "",  # ocr_text
-                "Uber"
+                "", "", "", "Uber"
             ]
             worksheet.append_row(row)
             st.success("Shift logged.")
 
-# Optional footer
+# Footer
 st.markdown("---")
 st.caption("Built with ❤️ by Tom")
