@@ -6,6 +6,7 @@ from PIL import Image
 import pytesseract
 import base64
 import io
+import re
 
 # ------------------ SETUP ------------------ #
 
@@ -89,9 +90,20 @@ if page == "End Shift":
 
     screenshot = st.file_uploader("Upload Uber Screenshot", type=["png", "jpg", "jpeg"])
     ocr_text = ""
+    gross_earnings = 0.0
+
     if screenshot:
         img = Image.open(screenshot)
         ocr_text = pytesseract.image_to_string(img)
+
+        # Extract gross earnings from OCR text
+        match = re.search(r"Total earnings\s*\$?NZ?\$?(\d+\.\d{2})", ocr_text)
+        if match:
+            gross_earnings = float(match.group(1))
+        else:
+            fallback = re.search(r"\$?NZ?\$?(\d+\.\d{2})", ocr_text)
+            if fallback:
+                gross_earnings = float(fallback.group(1))
 
     if st.button("Submit Shift"):
         start = st.session_state["shift_start"]
@@ -103,9 +115,9 @@ if page == "End Shift":
             end_odo,
             end_date.strftime("%Y-%m-%d"),
             datetime.now().isoformat(),
-            "", "", "", "", "", "", "", "",  # earnings placeholders
+            gross_earnings, "", "", "", "", "", "", "",  # only gross filled
             mileage,
-            "", "",  # duration placeholders
+            "", "",  # online hours, minutes
             ocr_text,
             "manual + ocr"
         ]
